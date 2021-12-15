@@ -1,0 +1,64 @@
+#!/bin/bash
+set -e
+
+indent() {
+  sed -u 's/^/       /'
+}
+
+BUILD_DIR=$1
+CACHE_DIR=$2
+ENV_DIR=$3
+
+export_env_dir() {
+  env_dir=$1
+  acceptlist_regex=${2:-''}
+  denylist_regex=${3:-'^(PATH|GIT_DIR|CPATH|CPPATH|LD_PRELOAD|LIBRARY_PATH)$'}
+  if [ -d "$env_dir" ]; then
+    for e in $(ls $env_dir); do
+      echo "$e" | grep -E "$acceptlist_regex" | grep -qvE "$denylist_regex" &&
+      export "$e=$(cat $env_dir/$e)"
+      :
+    done
+  fi
+}
+
+export_env_dir $ENV_DIR
+
+XPDF_VERSION="${XPDF_VERSION:-4.03}"
+echo "-----> Installing XPDF $XPDF_VERSION"
+
+VENDOR_DIR="$BUILD_DIR/vendor"
+INSTALL_DIR="$VENDOR_DIR/xpdf/bin"
+mkdir -p $INSTALL_DIR
+CACHE_BIN_DIR="$CACHE_DIR/xpdf"
+mkdir -p $CACHE_BIN_DIR
+CACHE_FILE="$CACHE_BIN_DIR/pdftotext"
+PROFILE_DIR="$BUILD_DIR/.profile.d"
+PACKAGE_DIR="xpdf-tools-linux-$XPDF_VERSION"
+PACKAGE_FILE="$PACKAGE_DIR.tar.gz"
+PACKAGE_URL="https://dl.xpdfreader.com/$PACKAGE_FILE"
+
+# we only check if the one file is there since the cp will likely either
+# work or not
+if [ ! -f $CACHE_FILE ]; then
+  wget $PACKAGE_URL -P $VENDOR_DIR | indent
+
+  if [ ! -f $VENDOR_DIR/$PACKAGE_FILE ]; then
+    echo "Error: Unable to download XPDF" | indent
+    ls $VENDOR_DIR | indent
+    exit 1;
+  fi
+
+  cd $VENDOR_DIR
+  tar xvf $VENDOR_DIR/$PACKAGE_FILE | indent
+  cp $VENDOR_DIR/$PACKAGE_DIR/bin64/* $CACHE_BIN_DIR
+fi
+
+cd $BUILD_DIR
+cp $CACHE_BIN_DIR/* $INSTALL_DIR
+
+mkdir -p $PROFILE_DIR
+echo "export PATH=\"\$HOME/vendor/xpdf/bin:\$PATH\"" >> $PROFILE_DIR/xpdf.sh
+
+echo "-----> Done."
+echo ""
