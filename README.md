@@ -1,6 +1,6 @@
 # pdftotext-heroku-buildpack
 
-
+TO PARSER CV TO JSON AND DEPLOY WITH HEROKU METHODE 
 etape 1 : 
 Settings 
 
